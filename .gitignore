@@ -1,0 +1,22 @@
+# VIM - Archivos swap o temporales (formato '.filename.swp')
+**/*.swp
+**/*.swo
+
+# VIM - Archivos de 'persistence undo' (formato '.filename.un~')
+**/*.un~
+
+# Log generados por: TMUX, ..
+*.log
+
+# Archivos internos de GIT
+.git/*
+
+# Archivos de tag generado por Universal CTags
+tags
+tags.lock
+
+# Paquetes locales de NodeJS (binarios de NodeJs)
+node_modules/*
+
+
+

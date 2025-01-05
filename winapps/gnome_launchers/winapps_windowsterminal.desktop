@@ -1,0 +1,10 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Version=1.0
+Type=Application
+Terminal=false
+Exec=/usr/bin/xfreerdp /u:lucianoepc /p:"lepc#2024" /v:192.168.50.30 /drive:myhome,/home/lucianoepc /app:program:"C:\\Program Files\\WindowsApps\\Microsoft.WindowsTerminal_1.21.3231.0_x64__8wekyb3d8bbwe\\wt.exe" /audio-mode:0 +clipboard
+Name=Windows Terminal (Winapps)
+Comment=Windows Terminal as a Winapps
+Icon=/home/lucianoepc/.local/share/icons/hicolor/256x256/apps/windowsterminal.png
+

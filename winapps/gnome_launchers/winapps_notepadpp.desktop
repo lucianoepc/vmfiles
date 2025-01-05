@@ -1,0 +1,11 @@
+#!/usr/bin/env xdg-open
+[Desktop Entry]
+Version=1.0
+Type=Application
+Terminal=false
+Exec=/usr/bin/xfreerdp /u:lucianoepc /p:"lepc#2024" /v:192.168.50.30 /drive:myhome,/home/lucianoepc /app:program:"C:\\Tools\\Notepad++\\notepad++.exe" /audio-mode:0 +clipboard
+Path=/home/lucianoepc
+Name=Notepad++ (Winapps)
+Comment=Notepad++ as a Winapps
+Icon=/home/lucianoepc/.local/share/icons/hicolor/256x256/apps/notepadpp.png
+
