@@ -14,9 +14,12 @@ g_core=2
 g_thread_per_core=2
 g_memory_size='16G'
 
+# Socket IPC para el QEMU Monitor
+g_monitor_socket="/dt1/qemu/sockets/monitor_${g_vm_name}.sock"
 # > Crear el disco principal:
 #   qemu-img create -f qcow2 /dt1/vdisks/vmfedsrv_1.qcow2 40G
-g_vdisk_path="/dt1/vdisks/${g_vm_name}_1.qcow2"
+g_vdisk_path_1="/dt1/vdisks/${g_vm_name}_1.qcow2"
+g_vdisk_path_2="/dt1/vdisks/${g_vm_name}_2.qcow2"
 
 # > Para generar la MAC se usara:
 #   printf -v macaddr "52:54:%02x:%02x:%02x:%02x" $(($RANDOM & 0xff)) $(($RANDOM & 0xff)) $(($RANDOM & 0xff)) $(($RANDOM & 0xff))
@@ -38,12 +41,15 @@ _usage() {
     printf '    %b%s.bash\n%b' "$g_color_yellow1" "$g_vm_name" "$g_color_reset"
     printf '    %b%s.bash FLAG_SETUP\n%b' "$g_color_yellow1" "$g_vm_name" "$g_color_reset"
     printf '    %b%s.bash FLAG_SETUP SPICE_PORT\n%b' "$g_color_yellow1" "$g_vm_name" "$g_color_reset"
+    printf '    %b%s.bash FLAG_SETUP SPICE_PORT ENABLE_MONITOR\n%b' "$g_color_yellow1" "$g_vm_name" "$g_color_reset"
     printf 'Donde:\n'
     printf '  > %bFLAG_SETUP %bindica la opción de la configuración. Si no se especifica, se considera "2". Sus valores son:%b\n' "$g_color_green1" "$g_color_gray1" "$g_color_reset"
     printf '    %b0%b: Instalar la VM.%b\n' "$g_color_green1" "$g_color_gray1" "$g_color_reset"
     printf '    %b1%b: Ejecutar la VM de modo interactivo (muestra la consola QEMU).%b\n' "$g_color_green1" "$g_color_gray1" "$g_color_reset"
     printf '    %b2%b: Ejecutar la VM de modo background  (no se muestra la consola QEMU y se ejecuta como demonio).%b\n' "$g_color_green1" "$g_color_gray1" "$g_color_reset"
     printf '  > %bSPICE_PORT %bindica el puerto SPICE que se expone localmente (127.0.0.1). El puerto debe ser mayor a 1024, por ejemplo 5931.%b\n' "$g_color_green1" \
+           "$g_color_gray1" "$g_color_reset"
+    printf '  > %bENABLE_MONITOR %bSi es 0, indica que se desactiva el socket de monitoreo de QEMU. Por defecto es 1, es decir, esta activado socket IPC de monitoreo.%b\n' "$g_color_green1" \
            "$g_color_gray1" "$g_color_reset"
     printf 'Clonar una VM Linux:\n'
     printf '  1> Para generar la MAC se usara %b(se recomienda reusar las mac address almacenados en el onedrive)%b:\n' "$g_color_gray1" "$g_color_reset"
@@ -92,13 +98,19 @@ _usage() {
 }
 
 
-star_vm() {
+start_vm() {
 
     #1. Parametros
     local p_setup_flag=$1   #(0) Instalar la VM. 
                             #(1) Ejecutar la VM de modo interactivo.
                             #(2) Ejecutar la VM de modo background.
-    local l_spice_port=$2
+    local p_spice_port=$2
+
+    local p_enable_monitor=1
+    if [ "$3" = "0" ]; then
+        p_enable_monitor=0
+    fi
+
 
     #2. Calcular los opciones dinamicas de qemu
 
@@ -108,7 +120,8 @@ star_vm() {
     g_options="${g_options} -smp $((g_core * g_thread_per_core)) -rtc base=localtime"
 
     #Disco
-    g_options="${g_options} -drive if=virtio,media=disk,index=0,cache=unsafe,file=${g_vdisk_path}"
+    g_options="${g_options} -drive if=virtio,media=disk,index=0,cache=unsafe,file=${g_vdisk_path_1}"
+    g_options="${g_options} -drive if=virtio,media=disk,index=1,cache=unsafe,file=${g_vdisk_path_2}"
 
     #Tarjeta de Red
     g_options="${g_options} -net nic,model=virtio-net-pci,macaddr=${g_mac_address} -net bridge,br=br0"
@@ -121,8 +134,19 @@ star_vm() {
     #g_options="${g_options} -vga qxl"
 
     #Usar escritorio remoto SPICE
-    if [ ! -z "$l_spice_port" ]; then
-        g_options="${g_options} -vga qxl -spice port=${l_spice_port},addr=127.0.0.1,disable-ticketing=on"
+    if [ ! -z "$p_spice_port" ]; then
+
+        g_options="${g_options} -vga qxl -spice port=${p_spice_port},addr=127.0.0.1,disable-ticketing=on"
+    fi
+
+    #Habilitar el monitor QEMU usando socket UNIX
+    if [ $p_enable_monitor -ne 0 ]; then
+
+        #Si existe el descriptor del socket IPC, eliminarlo.
+        if [ -f "$g_monitor_socket" ]; then
+            rm "$g_monitor_socket"
+        fi
+        g_options="${g_options} -monitor unix:${g_monitor_socket},server,nowait"
     fi
     
     #Opciones usados durante la instalación de la VM
@@ -141,13 +165,20 @@ star_vm() {
         fi
     
     fi
+
+    if [ $p_enable_monitor -ne 0 ]; then
+        printf 'Socket de monitoreo: "%b%s%b"\n' "$g_color_gray1" "$g_monitor_socket" "$g_color_reset"
+    fi
+    printf 'CPU Core           : "%b%s%b"\n' "$g_color_gray1" "$((g_core * g_thread_per_core))" "$g_color_reset"
+    printf 'Disco           (1): "%b%s%b"\n' "$g_color_gray1" "$g_vdisk_path_1" "$g_color_reset"
+    printf 'MAC Address        : "%b%s%b"\n\n' "$g_color_gray1" "$g_mac_address" "$g_color_reset"
+
     
     printf 'Start VM "%b%s%b"...\n%bqemu-system-x86_64%b %s%b\n' "$g_color_gray1" "$g_vm_name" "$g_color_reset" "$g_color_green1" "$g_color_gray1" "$g_options" "$g_color_reset"
     #return 0
     
     #3. Iniciar la VM
     qemu-system-x86_64 ${g_options}
-
 
 }
 
@@ -189,16 +220,39 @@ if [ ! -z "$2" ]; then
     fi
 fi
 
+gp_enable_monitor=1
+if [ "$3" = "0" ]; then
+    gp_enable_monitor=0
+fi
 
 #Validar si el disco virtual de la VM existen
-if [ ! -f "$g_vdisk_path" ]; then
-    printf 'El archivo "%b%s%b", que representa al disco virtual de la VM "%b%s%b", no existe o no se tiene permisos.\n' "$g_color_gray1" "$g_vdisk_path" "$g_color_reset" \
+if [ ! -f "$g_vdisk_path_1" ]; then
+    printf 'El archivo "%b%s%b", que representa al disco virtual principal de la VM "%b%s%b", no existe o no se tiene permisos.\n' "$g_color_gray1" "$g_vdisk_path_1" "$g_color_reset" \
            "$g_color_gray1" "$g_vm_name" "$g_color_reset"
     exit 3
 fi
 
-#¿validar si la VM esta en ejecución?
+#Validar si el disco virtual de la VM existen
+if [ ! -f "$g_vdisk_path_2" ]; then
+    printf 'El archivo "%b%s%b", que representa al disco virtual alternativo de la VM "%b%s%b", no existe o no se tiene permisos.\n' "$g_color_gray1" "$g_vdisk_path_2" "$g_color_reset" \
+           "$g_color_gray1" "$g_vm_name" "$g_color_reset"
+    exit 3
+fi
+
+
+#Validar si la VM esta en ejecución (verifica un proceso 'qemu-system-x86_64' que use el disco asociado a la VM
+#El primer caracter se usa '[]' (cojunto de caracteres usando expresion regular) para que se colocque en la busqueda el proceso grep del pipeline
+if ps -fe | grep -E '[q]emu-system-x86_64.*'"$g_vdisk_path_1" &> /dev/null; then
+
+    printf 'No puede iniciar la VM debido a que ya existe un proceso "%b%s%b" en ejecución y ha iniciado la VM "%b%s%b".\n' "$g_color_gray1" "qemu-system-x86_64" "$g_color_reset" \
+           "$g_color_gray1" "$g_vm_name" "$g_color_reset"
+    exit 3
+
+fi
+
+
 #¿validar si el puerto SPICE esta ocupado?
 
-star_vm $gp_setup_flag "$gp_spice_port"
+
+start_vm $gp_setup_flag "$gp_spice_port" $gp_enable_monitor
 

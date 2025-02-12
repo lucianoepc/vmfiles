@@ -9,10 +9,10 @@ g_color_yellow1="\x1b[33m"
 g_color_red1="\x1b[31m"
 
 #Constantes usados durante la instalación y ejecución de la VM.
-g_vm_name='vmmaster2.k8s1'
+g_vm_name='vmlnx01'
 g_core=2
 g_thread_per_core=2
-g_memory_size='16G'
+g_memory_size='20G'
 
 # Socket IPC para el QEMU Monitor
 g_monitor_socket="/dt1/qemu/sockets/monitor_${g_vm_name}.sock"
@@ -20,15 +20,14 @@ g_monitor_socket="/dt1/qemu/sockets/monitor_${g_vm_name}.sock"
 # > Crear el disco principal:
 #   qemu-img create -f qcow2 /dt1/vdisks/vmfedsrv_1.qcow2 40G
 g_vdisk_path_1="/dt2/vdisks/${g_vm_name}_1.qcow2"
-g_vdisk_path_2="/dt2/vdisks/${g_vm_name}_2.qcow2"
 
 # > Para generar la MAC se usara:
 #   printf -v macaddr "52:54:%02x:%02x:%02x:%02x" $(($RANDOM & 0xff)) $(($RANDOM & 0xff)) $(($RANDOM & 0xff)) $(($RANDOM & 0xff))
 #   echo $macaddr
-g_mac_address='52:54:7e:fb:07:b9'
+g_mac_address='52:54:91:b4:82:4d'
 
 #Constantes usados solo durante la instalación de la VM.
-g_iso_os_path='/tempo/isos/rhcos-live.x86_64.iso'
+g_iso_os_path='/tempo/isos/Fedora-Server-dvd-x86_64-41-1.4.iso'
 
 #Constantes usados solo durante la ejecucion de la VM.
 
@@ -122,7 +121,6 @@ start_vm() {
 
     #Disco
     g_options="${g_options} -drive if=virtio,media=disk,index=0,cache=unsafe,file=${g_vdisk_path_1}"
-    g_options="${g_options} -drive if=virtio,media=disk,index=1,cache=unsafe,file=${g_vdisk_path_2}"
 
     #Tarjeta de Red
     g_options="${g_options} -net nic,model=virtio-net-pci,macaddr=${g_mac_address} -net bridge,br=br0"
@@ -228,18 +226,10 @@ fi
 
 #Validar si el disco virtual de la VM existen
 if [ ! -f "$g_vdisk_path_1" ]; then
-    printf 'El archivo "%b%s%b", que representa al disco virtual principal de la VM "%b%s%b", no existe o no se tiene permisos.\n' "$g_color_gray1" "$g_vdisk_path_1" "$g_color_reset" \
+    printf 'El archivo "%b%s%b", que representa al disco virtual de la VM "%b%s%b", no existe o no se tiene permisos.\n' "$g_color_gray1" "$g_vdisk_path_1" "$g_color_reset" \
            "$g_color_gray1" "$g_vm_name" "$g_color_reset"
     exit 3
 fi
-
-#Validar si el disco virtual de la VM existen
-if [ ! -f "$g_vdisk_path_2" ]; then
-    printf 'El archivo "%b%s%b", que representa al disco virtual alternativo de la VM "%b%s%b", no existe o no se tiene permisos.\n' "$g_color_gray1" "$g_vdisk_path_2" "$g_color_reset" \
-           "$g_color_gray1" "$g_vm_name" "$g_color_reset"
-    exit 3
-fi
-
 
 #Validar si la VM esta en ejecución (verifica un proceso 'qemu-system-x86_64' que use el disco asociado a la VM
 #El primer caracter se usa '[]' (cojunto de caracteres usando expresion regular) para que se colocque en la busqueda el proceso grep del pipeline

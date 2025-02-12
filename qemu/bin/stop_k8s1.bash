@@ -60,7 +60,7 @@ _check_server_is_shutdown() {
         fi
         
         if [ $l_retries -ne $p_max_retries ]; then
-            printf '    El servidor "%b%s%b" aun esta en linea (cmd-core=%b%s%b) despues de su %s intento, esperando %s segundos para el siguiente intento...\n' \
+            printf '    El servidor "%b%s%b" aun esta en linea (cmd-code=%b%s%b) despues de su %s intento, esperando %s segundos para el siguiente intento...\n' \
                    "$g_color_gray1" "$p_server" "$g_color_reset" "$g_color_gray1" "$l_status" "$g_color_reset" "$l_retries" "$p_retry_interval"
             sleep $p_retry_interval
         fi

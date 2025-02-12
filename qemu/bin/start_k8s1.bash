@@ -138,7 +138,7 @@ _check_server_health() {
         fi
         
         if [ $l_retries -ne $p_max_retries ]; then
-            printf '    El servicio "%b%s%b" aun no esta activo (cmd-core=%b%s%b, http-code=%b%s%b) despues de su %s intento, esperando %s segundos para el siguiente intento...\n' \
+            printf '    El servicio "%b%s%b" aun no esta activo (cmd-code=%b%s%b, http-code=%b%s%b) despues de su %s intento, esperando %s segundos para el siguiente intento...\n' \
                    "$g_color_gray1" "$p_url_health" "$g_color_reset" "$g_color_gray1" "$l_status" "$g_color_reset" "$g_color_gray1" "$l_response" "$g_color_reset" \
                    "$l_retries" "$p_retry_interval"
             sleep $p_retry_interval
@@ -195,7 +195,7 @@ start_k8s1() {
         return 2
     fi
 
-    printf 'Contexto actual: "%b%s%b".\n' "$g_color_gray1" "$l_aux" "$g_color_reset"
+    printf 'Contexto actual: "%b%s%b".\n\n' "$g_color_gray1" "$l_aux" "$g_color_reset"
 
 
     #3. Validando que el servidor DNS esta activo
@@ -238,18 +238,19 @@ start_k8s1() {
     fi
 
     #3. Iniciando los nodos maestros
-    printf 'Iniciando los nodos %bmaestros%b:\n' "$g_color_cian1" "$g_color_reset"
+    printf '\nIniciando los nodos %bmaestros%b:\n' "$g_color_cian1" "$g_color_reset"
     /dt1/qemu/bin/vmmaster1.k8s1.bash
     /dt1/qemu/bin/vmmaster2.k8s1.bash
     /dt1/qemu/bin/vmmaster3.k8s1.bash
 
 
     #4. Iniciando los nodos de trabajo
-    printf 'Iniciando los nodos %btraabajo%b:\n' "$g_color_cian1" "$g_color_reset"
+    printf 'Iniciando los nodos %btrabajo%b:\n' "$g_color_cian1" "$g_color_reset"
     /dt1/qemu/bin/vmworker1.k8s1.bash
 
 
     #5. Esperar que el API server esta activo
+    printf '\n'
     _check_server_health 'https://api.k8s1.quyllur.home:6443/healthz' 60 5
     l_status=$?
     
@@ -268,6 +269,7 @@ start_k8s1() {
     fi
 
     #7. Aprobar los CSR en forma reiteratiba hasta que no exista peticiones
+    printf '\n'
     _ocp_approve_all_csrs 4 5
     l_status=$?
     
@@ -278,6 +280,7 @@ start_k8s1() {
 
 
     #8. Uncordon los nodos
+    printf '\n'
     local l_node
     for l_node in $(oc get nodes -o jsonpath='{.items[*].metadata.name}'); do
         printf 'Uncordon el nodo "%b%s%b": %boc adm uncordon %s%b\n' "$g_color_cian1" "$l_node" "$g_color_reset" "$g_color_gray1" "$l_node" "$g_color_reset"

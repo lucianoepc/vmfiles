@@ -14,9 +14,12 @@ g_core=2
 g_thread_per_core=2
 g_memory_size='8G'
 
+# Socket IPC para el QEMU Monitor
+g_monitor_socket="/dt1/qemu/sockets/monitor_${g_vm_name}.sock"
+
 # > Crear el disco principal:
 #   qemu-img create -f qcow2 /dt1/vdisks/vmphoenix_1.qcow2 250G
-g_vdisk_path="/dt1/vdisks/${g_vm_name}_1.qcow2"
+g_vdisk_path_1="/dt1/vdisks/${g_vm_name}_1.qcow2"
 
 # > Para generar la MAC se usara:
 #   printf -v macaddr "52:54:%02x:%02x:%02x:%02x" $(($RANDOM & 0xff)) $(($RANDOM & 0xff)) $(($RANDOM & 0xff)) $(($RANDOM & 0xff))
@@ -39,17 +42,16 @@ g_iso_virtio_path='/dt1/qemu/shared/virtio/virtio-win-0.1.248.iso'
 g_options=''
 
 
-                    #(1) Ejecutar la VM de modo interactivo usando la consola QEMU.
-                    #(2) Ejecutar la VM de modo background (sin driver de red/video 'virtio').
-                    #(3) Ejecutar la VM de modo background (driver de red/video 'virtio').
 _usage() {
 
     printf 'Usage:\n'
     printf '    %b%s.bash\n%b' "$g_color_yellow1" "$g_vm_name" "$g_color_reset"
     printf '    %b%s.bash FLAG_SETUP\n%b' "$g_color_yellow1" "$g_vm_name" "$g_color_reset"
+    printf '    %b%s.bash FLAG_SETUP SPICE_PORT\n%b' "$g_color_yellow1" "$g_vm_name" "$g_color_reset"
     printf '    %b%s.bash FLAG_SETUP SPICE_PORT RDP_PORT\n%b' "$g_color_yellow1" "$g_vm_name" "$g_color_reset"
+    printf '    %b%s.bash FLAG_SETUP SPICE_PORT RDP_PORT ENABLE_MONITOR\n%b' "$g_color_yellow1" "$g_vm_name" "$g_color_reset"
     printf 'Donde:\n'
-    printf '  > %bFLAG_SETUP %bindica la opción de la configuración. Si no se especifica, se considera "3". Sus valores son:%b\n' "$g_color_green1" "$g_color_gray1" "$g_color_reset"
+    printf '  > %bFLAG_SETUP %bindica la opción de la configuración. Si no se especifica, se considera "2". Sus valores son:%b\n' "$g_color_green1" "$g_color_gray1" "$g_color_reset"
     printf '    %b0%b: Instalar la VM.%b\n' "$g_color_green1" "$g_color_gray1" "$g_color_reset"
     printf '    %b1%b: Ejecutar la VM en modo interactivo (usando la consola QEMU).%b\n' "$g_color_green1" "$g_color_gray1" "$g_color_reset"
     printf '    %b2%b: Ejecutar la VM en modo background  (demonio) y sin el driver de red//video "virtio".%b\n' "$g_color_green1" "$g_color_gray1" "$g_color_reset"
@@ -57,6 +59,8 @@ _usage() {
     printf '  > %bSPICE_PORT %bindica el puerto SPICE que se expone localmente (127.0.0.1). Por defecto es 5930.%b\n' "$g_color_green1" \
            "$g_color_gray1" "$g_color_reset"
     printf '  > %bRDP_PORT %bindica el port-forwarding desde la VM al host del puerto RDP. Por ejemplo 3389.%b\n' "$g_color_green1" \
+           "$g_color_gray1" "$g_color_reset"
+    printf '  > %bENABLE_MONITOR %bSi es 0, indica que se desactiva el socket de monitoreo de QEMU. Por defecto es 1, es decir, esta activado socket IPC de monitoreo.%b\n' "$g_color_green1" \
            "$g_color_gray1" "$g_color_reset"
     printf 'Clonar una VM Linux:\n'
     printf '  1> Para generar la MAC se usara:\n'
@@ -102,15 +106,20 @@ _usage() {
 }
 
 
-star_vm() {
+start_vm() {
 
     #1. Parametros
     local p_setup_flag=$1   #(0) Instalar la VM. 
                             #(1) Ejecutar la VM de modo interactivo usando la consola QEMU.
                             #(2) Ejecutar la VM de modo background (sin driver de red/video 'virtio').
                             #(3) Ejecutar la VM de modo background (driver de red/video 'virtio').
-    local l_spice_port=$2
-    local l_rdp_port=$3
+    local p_spice_port=$2
+    local p_rdp_port=$3
+
+    local p_enable_monitor=1
+    if [ "$4" = "0" ]; then
+        p_enable_monitor=0
+    fi
 
     #2. Iniciar el amulador de TMP
     #swtpm socket --tpmstate dir=/dt1/qemu/etc --ctrl type=unixio,path=/dt1/qemu/etc/vmphoenix_swtpm_sock --tpm2 -d
@@ -129,19 +138,29 @@ star_vm() {
     g_options="${g_options} -drive if=pflash,format=raw,file=${g_bios_storage_path}"
 
     #Disco
-    g_options="${g_options} -drive if=virtio,media=disk,index=0,cache=unsafe,file=${g_vdisk_path}"
+    g_options="${g_options} -drive if=virtio,media=disk,index=0,cache=unsafe,file=${g_vdisk_path_1}"
 
     #Tarjeta de sonido
     g_options="${g_options} -audiodev pipewire,id=snd0 -device ich9-intel-hda -device hda-output,audiodev=snd0"
 
     #Usar el escritorio remoto spice
-    if [ ! -z "$l_spice_port" ]; then
-        g_options="${g_options} -spice port=${l_spice_port},addr=127.0.0.1,disable-ticketing=on"
+    if [ ! -z "$p_spice_port" ]; then
+        g_options="${g_options} -spice port=${p_spice_port},addr=127.0.0.1,disable-ticketing=on"
     fi
 
     #Opciones del emulador TMP
     #-tpmdev "passthrough,id=tpm0,path=/dev/tpm0" -device "tpm-tis,tpmdev=tpm0" -runas lucianoepc \
     #-chardev "socket,id=chrtpm,path=/dt1/qemu/etc/vmphoenix_swtpm_sock" -tpmdev "emulator,id=tpm0,chardev=chrtpm" -device "tpm-tis,tpmdev=tpm0" \
+    
+    #Habilitar el monitor QEMU usando socket UNIX
+    if [ $p_enable_monitor -ne 0 ]; then
+
+        #Si existe el descriptor del socket IPC, eliminarlo.
+        if [ -f "$g_monitor_socket" ]; then
+            rm "$g_monitor_socket"
+        fi
+        g_options="${g_options} -monitor unix:${g_monitor_socket},server,nowait"
+    fi
     
     #Opciones usados durante la instalación de la VM
     if [ $p_setup_flag -eq 0 ]; then
@@ -192,8 +211,8 @@ star_vm() {
 
         #Port-forwarding VM to Host: RDP port
         #-netdev user,id=x,hostfwd=[tcp|udp]:[hostaddr]:hostport-[guestaddr]:guestport
-        if [ ! -z "$l_rdp_port" ]; then
-            g_options="${g_options} -net user,hostfwd=tcp::${l_rdp_port}-:3389"
+        if [ ! -z "$p_rdp_port" ]; then
+            g_options="${g_options} -net user,hostfwd=tcp::${p_rdp_port}-:3389"
         fi
     
     fi
@@ -265,17 +284,32 @@ if [ ! -z "$3" ]; then
     fi
 fi
 
+gp_enable_monitor=1
+if [ "$4" = "0" ]; then
+    gp_enable_monitor=0
+fi
+
 
 #Validar si el disco virtual de la VM existen
-if [ ! -f "$g_vdisk_path" ]; then
-    printf 'El archivo "%b%s%b", que representa al disco virtual de la VM "%b%s%b", no existe o no se tiene permisos.\n' "$g_color_gray1" "$g_vdisk_path" "$g_color_reset" \
+if [ ! -f "$g_vdisk_path_1" ]; then
+    printf 'El archivo "%b%s%b", que representa al disco virtual de la VM "%b%s%b", no existe o no se tiene permisos.\n' "$g_color_gray1" "$g_vdisk_path_1" "$g_color_reset" \
            "$g_color_gray1" "$g_vm_name" "$g_color_reset"
     exit 3
 fi
 
-#¿validar si la VM esta en ejecución?
+#Validar si la VM esta en ejecución (verifica un proceso 'qemu-system-x86_64' que use el disco asociado a la VM
+#El primer caracter se usa '[]' (cojunto de caracteres usando expresion regular) para que se colocque en la busqueda el proceso grep del pipeline
+if ps -fe | grep -E '[q]emu-system-x86_64.*'"$g_vdisk_path_1" &> /dev/null; then
+
+    printf 'No puede iniciar la VM debido a que ya existe un proceso "%b%s%b" en ejecución y ha iniciado la VM "%b%s%b".\n' "$g_color_gray1" "qemu-system-x86_64" "$g_color_reset" \
+           "$g_color_gray1" "$g_vm_name" "$g_color_reset"
+    exit 3
+
+fi
+
+
 #¿validar si el puerto SPICE esta ocupado?
 
-star_vm $gp_setup_flag "$gp_spice_port" "$gp_rdp_port"
+start_vm $gp_setup_flag "$gp_spice_port" "$gp_rdp_port" $gp_enable_monitor
 
 
