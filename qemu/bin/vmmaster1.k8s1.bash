@@ -15,7 +15,11 @@ g_thread_per_core=2
 g_memory_size='16G'
 
 # Socket IPC para el QEMU Monitor
-g_monitor_socket="/dt1/qemu/sockets/monitor_${g_vm_name}.sock"
+g_socket_monitor="/dt1/qemu/sockets/qemu_mon_${g_vm_name}.sock"
+
+# Socket IPC para el QEMU Machine Protocol
+g_socket_machinep="/dt1/qemu/sockets/qemu_map_${g_vm_name}.sock"
+
 # > Crear el disco principal:
 #   qemu-img create -f qcow2 /dt1/vdisks/vmfedsrv_1.qcow2 40G
 g_vdisk_path_1="/dt1/vdisks/${g_vm_name}_1.qcow2"
@@ -143,10 +147,10 @@ start_vm() {
     if [ $p_enable_monitor -ne 0 ]; then
 
         #Si existe el descriptor del socket IPC, eliminarlo.
-        if [ -f "$g_monitor_socket" ]; then
-            rm "$g_monitor_socket"
+        if [ -f "$g_socket_monitor" ]; then
+            rm "$g_socket_monitor"
         fi
-        g_options="${g_options} -monitor unix:${g_monitor_socket},server,nowait"
+        g_options="${g_options} -monitor unix:${g_socket_monitor},server,nowait"
     fi
     
     #Opciones usados durante la instalación de la VM
@@ -167,7 +171,7 @@ start_vm() {
     fi
 
     if [ $p_enable_monitor -ne 0 ]; then
-        printf 'Socket de monitoreo: "%b%s%b"\n' "$g_color_gray1" "$g_monitor_socket" "$g_color_reset"
+        printf 'Socket de monitoreo: "%b%s%b"\n' "$g_color_gray1" "$g_socket_monitor" "$g_color_reset"
     fi
     printf 'CPU Core           : "%b%s%b"\n' "$g_color_gray1" "$((g_core * g_thread_per_core))" "$g_color_reset"
     printf 'Disco           (1): "%b%s%b"\n' "$g_color_gray1" "$g_vdisk_path_1" "$g_color_reset"

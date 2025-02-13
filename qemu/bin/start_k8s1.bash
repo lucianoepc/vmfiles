@@ -239,18 +239,23 @@ start_k8s1() {
 
     #3. Iniciando los nodos maestros
     printf '\nIniciando los nodos %bmaestros%b:\n' "$g_color_cian1" "$g_color_reset"
+    printf '\n'
     /dt1/qemu/bin/vmmaster1.k8s1.bash
+    printf '\n'
     /dt1/qemu/bin/vmmaster2.k8s1.bash
+    printf '\n'
     /dt1/qemu/bin/vmmaster3.k8s1.bash
+    printf '\n'
 
 
     #4. Iniciando los nodos de trabajo
     printf 'Iniciando los nodos %btrabajo%b:\n' "$g_color_cian1" "$g_color_reset"
+    printf '\n'
     /dt1/qemu/bin/vmworker1.k8s1.bash
+    printf '\n'
 
 
     #5. Esperar que el API server esta activo
-    printf '\n'
     _check_server_health 'https://api.k8s1.quyllur.home:6443/healthz' 60 5
     l_status=$?
     

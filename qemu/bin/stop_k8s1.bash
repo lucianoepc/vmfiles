@@ -148,7 +148,7 @@ stop_k8s1() {
     for l_node in $(oc get nodes -o jsonpath='{.items[*].metadata.name}'); do
         printf 'Deteniendo el nodo "%b%s%b" en %s minuto: %boc debug node/%s -- chroot /host shutdown -h %s%b\n' "$g_color_cian1" "$l_node" "$g_color_reset" "$l_wait_time" \
                "$g_color_gray1" "$l_node" "$l_wait_time" "$g_color_reset"
-        oc debug node/${l_node} -- chroot /host shutdown -h ${l_wait_time}
+        oc debug node/${l_node} -n default -- chroot /host shutdown -h ${l_wait_time}
     done
 
     printf '\n\n'
