@@ -12,7 +12,7 @@ g_color_red1="\x1b[31m"
 g_vm_name='vmlnx01'
 g_core=2
 g_thread_per_core=2
-g_memory_size='20G'
+g_memory_size='18G'
 
 # Socket IPC para el QEMU Monitor
 g_monitor_socket="/dt1/qemu/sockets/monitor_${g_vm_name}.sock"
