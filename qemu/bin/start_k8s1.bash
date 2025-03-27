@@ -253,6 +253,8 @@ start_k8s1() {
     printf '\n'
     /dt1/qemu/bin/vmworker1.k8s1.bash
     printf '\n'
+    /dt1/qemu/bin/vmworker2.k8s1.bash
+    printf '\n'
 
 
     #5. Esperar que el API server esta activo
@@ -275,7 +277,7 @@ start_k8s1() {
 
     #7. Aprobar los CSR en forma reiteratiba hasta que no exista peticiones
     printf '\n'
-    _ocp_approve_all_csrs 4 5
+    _ocp_approve_all_csrs 5 5
     l_status=$?
     
     if [ "$l_status" -ne 0 ]; then
@@ -293,6 +295,19 @@ start_k8s1() {
     done
 
     printf 'El cluster se inicio con exito.\nValidar el estado de los operadores de cluster usando: "%b%s%b".\n' "$g_color_gray1" 'oc get co' "$g_color_reset"
+
+
+    #9. Aprobar los CSR en forma reiteratiba hasta que no exista peticiones
+    printf '\n'
+    _ocp_approve_all_csrs 8 10
+    l_status=$?
+    
+    if [ "$l_status" -ne 0 ]; then
+        printf 'Ocurrio un error en aprobar los certificados. Realize la operacion manual y luego un %b%s%b a todos los nodos.\n' "$g_color_gray1" 'uncordon' "$g_color_reset"
+        return 3
+    fi
+
+
 
 }
 

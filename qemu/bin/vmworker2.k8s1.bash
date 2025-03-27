@@ -12,7 +12,7 @@ g_color_red1="\x1b[31m"
 # 2. Parametros requeridos durante la instalación y ejecución de la VM.
 
 # Nemonico del la VM
-g_vm_name='vmworker1.k8s1'
+g_vm_name='vmworker2.k8s1'
 
 # CPU a usar por la VM
 g_core=2
@@ -25,7 +25,7 @@ g_memory_size='16G'
 # Para generar la MAC se usara:
 #   printf -v macaddr "52:54:%02x:%02x:%02x:%02x" $(($RANDOM & 0xff)) $(($RANDOM & 0xff)) $(($RANDOM & 0xff)) $(($RANDOM & 0xff))
 #   echo $macaddr
-g_mac_address='52:54:1c:61:2d:04'
+g_mac_address='52:54:8f:84:b6:7f'
 
 # Usar el segundo disco ('1' no usarlo. '0' usarlo)
 g_use_second_disk=1

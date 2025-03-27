@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#Colores principales usados para presentar información (menu,...)
+# 1. Colores principales usados para presentar información (menu,...)
 g_color_reset="\x1b[0m"
 g_color_green1="\x1b[32m"
 g_color_gray1="\x1b[90m"
@@ -8,11 +8,44 @@ g_color_cian1="\x1b[36m"
 g_color_yellow1="\x1b[33m"
 g_color_red1="\x1b[31m"
 
-#Constantes usados durante la instalación y ejecución de la VM.
+
+# 2. Parametros requeridos durante la instalación y ejecución de la VM.
+
+# Nemonico del la VM
 g_vm_name='bootstrap.k8s1'
+
+# CPU a usar por la VM
 g_core=2
 g_thread_per_core=2
+
+# Memoria a usar
 g_memory_size='16G'
+
+# MAC a usar la interfaz de red usanda por la VM
+# Para generar la MAC se usara:
+#   printf -v macaddr "52:54:%02x:%02x:%02x:%02x" $(($RANDOM & 0xff)) $(($RANDOM & 0xff)) $(($RANDOM & 0xff)) $(($RANDOM & 0xff))
+#   echo $macaddr
+g_mac_address='52:54:50:e9:be:4a'
+
+# Usar el segundo disco ('1' no usarlo. '0' usarlo)
+g_use_second_disk=1
+
+# El disco principal es donde se instala el SO. 
+# Para crear el disco principal:
+#   qemu-img create -f qcow2 /dt1/vdisks/vmfedsrv_1.qcow2 40G
+g_vdisk_path_1="/dt1/vdisks/${g_vm_name}_1.qcow2"
+
+# El disco alternativo solo se usa en ejecución, nunca durante la instalación
+# Para crear el disco alternativo
+#   qemu-img create -f qcow2 /dt1/vdisks/vmfedsrv_1.qcow2 40G
+g_vdisk_path_2="/dt1/vdisks/${g_vm_name}_2.qcow2"
+
+
+# 3. Parametros solo usados solo durante la instalación de la VM.
+g_iso_os_path='/tempo/isos/rhcos-live.x86_64.iso'
+
+
+# 4. Constantes autogeneradas
 
 # Socket IPC para el QEMU Monitor
 g_socket_monitor="/dt1/qemu/sockets/qemu_mon_${g_vm_name}.sock"
@@ -20,21 +53,8 @@ g_socket_monitor="/dt1/qemu/sockets/qemu_mon_${g_vm_name}.sock"
 # Socket IPC para el QEMU Machine Protocol
 g_socket_machinep="/dt1/qemu/sockets/qemu_map_${g_vm_name}.sock"
 
-# > Crear el disco principal:
-#   qemu-img create -f qcow2 /dt1/vdisks/vmfedsrv_1.qcow2 40G
-g_vdisk_path_1="/dt1/vdisks/${g_vm_name}_1.qcow2"
 
-# > Para generar la MAC se usara:
-#   printf -v macaddr "52:54:%02x:%02x:%02x:%02x" $(($RANDOM & 0xff)) $(($RANDOM & 0xff)) $(($RANDOM & 0xff)) $(($RANDOM & 0xff))
-#   echo $macaddr
-g_mac_address='52:54:50:e9:be:4a'
-
-#Constantes usados solo durante la instalación de la VM.
-g_iso_os_path='/tempo/isos/rhcos-live.x86_64.iso'
-
-#Constantes usados solo durante la ejecucion de la VM.
-
-#Variables globales
+# 5. Variables globales autogeneradas
 g_options=''
 
 
@@ -124,6 +144,10 @@ start_vm() {
 
     #Disco
     g_options="${g_options} -drive if=virtio,media=disk,index=0,cache=unsafe,file=${g_vdisk_path_1}"
+
+    if [ $p_setup_flag -ne 0 ] && [ $g_use_second_disk -eq 0 ]; then
+        g_options="${g_options} -drive if=virtio,media=disk,index=1,cache=unsafe,file=${g_vdisk_path_2}"
+    fi
 
     #Tarjeta de Red
     g_options="${g_options} -net nic,model=virtio-net-pci,macaddr=${g_mac_address} -net bridge,br=br0"
@@ -229,10 +253,18 @@ fi
 
 #Validar si el disco virtual de la VM existen
 if [ ! -f "$g_vdisk_path_1" ]; then
-    printf 'El archivo "%b%s%b", que representa al disco virtual de la VM "%b%s%b", no existe o no se tiene permisos.\n' "$g_color_gray1" "$g_vdisk_path_1" "$g_color_reset" \
+    printf 'El archivo "%b%s%b", que representa al disco virtual principal de la VM "%b%s%b", no existe o no se tiene permisos.\n' "$g_color_gray1" "$g_vdisk_path_1" "$g_color_reset" \
            "$g_color_gray1" "$g_vm_name" "$g_color_reset"
     exit 3
 fi
+
+#Validar si el disco virtual de la VM existen
+if [ $gp_setup_flag -ne 0 ] && [ $g_use_second_disk -eq 0 ] && [ ! -f "$g_vdisk_path_2" ]; then
+    printf 'El archivo "%b%s%b", que representa al disco virtual alternativo de la VM "%b%s%b", no existe o no se tiene permisos.\n' "$g_color_gray1" "$g_vdisk_path_2" "$g_color_reset" \
+           "$g_color_gray1" "$g_vm_name" "$g_color_reset"
+    exit 3
+fi
+
 
 #Validar si la VM esta en ejecución (verifica un proceso 'qemu-system-x86_64' que use el disco asociado a la VM
 #El primer caracter se usa '[]' (cojunto de caracteres usando expresion regular) para que se colocque en la busqueda el proceso grep del pipeline
@@ -248,5 +280,6 @@ fi
 #¿validar si el puerto SPICE esta ocupado?
 
 
+# Iniciar la ejecución de la VM
 start_vm $gp_setup_flag "$gp_spice_port" $gp_enable_monitor
 
